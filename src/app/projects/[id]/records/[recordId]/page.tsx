@@ -55,6 +55,9 @@ export default function RecordDetailPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-500">{TYPE_LABELS[record.type]}</span>
+              {record.is_baseline && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-teal-100 text-teal-700">기준 문서</span>
+              )}
               <p className="text-xs text-slate-400">📅 {dateStr}</p>
             </div>
             <h1 className="text-xl font-bold text-slate-800">{record.title}</h1>

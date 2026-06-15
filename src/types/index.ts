@@ -59,6 +59,7 @@ export interface Record {
   record_date: string
   content: string
   meta: RecordMeta
+  is_baseline: boolean
   created_at: string
   updated_at: string
 }

@@ -43,6 +43,7 @@ export default function NewRecordPage() {
   const [memoSource, setMemoSource] = useState('')
   // attachments
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isBaseline, setIsBaseline] = useState(false)
   // document
   const [docType, setDocType] = useState('')
   const [docVersion, setDocVersion] = useState('')
@@ -99,6 +100,7 @@ export default function NewRecordPage() {
       content: content.trim(),
       meta: buildMeta(),
       attachments,
+      is_baseline: isBaseline,
     }).select().single()
     setSaving(false)
     if (data) router.push(`/projects/${id}/records/${data.id}`)
@@ -273,6 +275,20 @@ export default function NewRecordPage() {
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">첨부파일</label>
           <AttachmentsInput value={attachments} onChange={setAttachments} />
         </div>
+
+        {/* 기준 문서 */}
+        <label className="flex items-center gap-3 cursor-pointer select-none py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+          <input
+            type="checkbox"
+            checked={isBaseline}
+            onChange={(e) => setIsBaseline(e.target.checked)}
+            className="w-4 h-4 rounded accent-teal-600"
+          />
+          <div>
+            <p className="text-sm font-medium text-slate-700">기준 문서로 사용</p>
+            <p className="text-xs text-slate-400 mt-0.5">AI 분석 시 이 기록을 기준으로 다른 기록들과 비교합니다</p>
+          </div>
+        </label>
 
         <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
           <Link href={`/projects/${id}`}>

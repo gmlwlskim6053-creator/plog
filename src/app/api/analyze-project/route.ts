@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
     // 상위 프로젝트 자체 기록
     const parentRecords = allRecords.filter((r) => r.project_id === projectId)
     if (parentRecords.length > 0) {
-      const baseDocs = parentRecords.filter((r) => r.type === 'document')
-      const activityRecs = parentRecords.filter((r) => r.type !== 'document')
+      const baseDocs = parentRecords.filter((r) => r.is_baseline)
+      const activityRecs = parentRecords.filter((r) => !r.is_baseline)
       let section = `=== [상위] ${project.name} ===`
       if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${baseDocs.map(buildRecordDetail).join('\n---\n')}`
       if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${activityRecs.map(buildRecordDetail).join('\n---\n')}`
@@ -117,8 +117,8 @@ export async function POST(req: NextRequest) {
     for (const child of childProjects!) {
       const childRecords = allRecords.filter((r) => r.project_id === child.id)
       if (childRecords.length === 0) continue
-      const baseDocs = childRecords.filter((r) => r.type === 'document')
-      const activityRecs = childRecords.filter((r) => r.type !== 'document')
+      const baseDocs = childRecords.filter((r) => r.is_baseline)
+      const activityRecs = childRecords.filter((r) => !r.is_baseline)
       let section = `=== [하위] ${child.name} (id: ${child.id}) ===`
       if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${baseDocs.map(buildRecordDetail).join('\n---\n')}`
       if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${activityRecs.map(buildRecordDetail).join('\n---\n')}`
@@ -177,8 +177,8 @@ ${sections.join('\n\n')}
   } else {
     // ── 하위 프로젝트 없음: 기존 방식 ──
     const records = allRecords
-    const baseDocuments = records.filter((r) => r.type === 'document')
-    const activityRecords = records.filter((r) => r.type !== 'document')
+    const baseDocuments = records.filter((r) => r.is_baseline)
+    const activityRecords = records.filter((r) => !r.is_baseline)
 
     const baseSummary = baseDocuments.length > 0
       ? `=== 기준 문서 ===\n\n${baseDocuments.map(buildRecordDetail).join('\n\n---\n\n')}`
