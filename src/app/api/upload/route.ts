@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
 
   if (ext === 'pdf') {
     try {
-      const pdfParse = (await import('pdf-parse')).default
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfParseModule = await import('pdf-parse') as any
+      const pdfParse = pdfParseModule.default ?? pdfParseModule
       const result = await pdfParse(buffer)
       return NextResponse.json({ name: file.name, type: 'pdf', extractedText: result.text })
     } catch {
@@ -33,7 +35,9 @@ export async function POST(req: NextRequest) {
 
   if (ext === 'pptx' || ext === 'ppt') {
     try {
-      const officeParser = (await import('officeparser')).default
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const officeParserModule = await import('officeparser') as any
+      const officeParser = officeParserModule.default ?? officeParserModule
       const text: string = await new Promise((resolve, reject) => {
         officeParser.parseOfficeAsync(buffer, { outputErrorToConsole: false })
           .then(resolve)
