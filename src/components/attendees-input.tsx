@@ -93,11 +93,11 @@ export function AttendeesInput({ value, onChange }: Props) {
   const [knownMembers, setKnownMembers] = useState<string[]>([])
 
   useEffect(() => {
-    supabase.from('meetings').select('attendees').then(({ data }) => {
+    supabase.from('records').select('meta').eq('type', 'meeting').then(({ data }) => {
       const depts = new Set<string>()
       const members = new Set<string>()
       for (const row of data ?? []) {
-        for (const d of row.attendees ?? []) {
+        for (const d of (row.meta as { attendees?: { department: string; members: string[] }[] })?.attendees ?? []) {
           if (d.department) depts.add(d.department)
           for (const m of d.members ?? []) {
             if (m) members.add(m)

@@ -12,6 +12,101 @@ export interface DepartmentAttendee {
   members: string[]
 }
 
+export interface ActionItem {
+  assignee: string
+  task: string
+}
+
+export interface Schedule {
+  date: string
+  content: string
+}
+
+// 기록 유형별 meta 구조
+export interface MeetingMeta {
+  attendees: DepartmentAttendee[]
+}
+
+export interface EmailMeta {
+  from: string
+  to: string
+  thread: { content: string; date: string }[]
+}
+
+export interface MemoMeta {
+  source: string
+}
+
+export interface DocumentMeta {
+  docType: string
+  version: string
+}
+
+export type RecordType = 'meeting' | 'email' | 'memo' | 'document'
+export interface Attachment {
+  name: string
+  type: 'image' | 'pdf' | 'docx' | 'txt' | 'pptx'
+  extractedText?: string
+}
+
+export type RecordMeta = MeetingMeta | EmailMeta | MemoMeta
+
+export interface Record {
+  id: string
+  project_id: string
+  type: RecordType
+  title: string
+  record_date: string
+  content: string
+  meta: RecordMeta
+  created_at: string
+  updated_at: string
+}
+
+// 기록별 AI 분석 결과
+export interface MeetingAnalysisResult {
+  summary: string
+  decisions: string[]
+  action_items: ActionItem[]
+  schedules: Schedule[]
+}
+
+export interface EmailAnalysisResult {
+  summary: string
+  requests: string[]
+  conclusions: string[]
+}
+
+export interface MemoAnalysisResult {
+  category: 'confirmed' | 'changed' | 'pending' | 'info'
+  summary: string
+}
+
+export type AnalysisResult = MeetingAnalysisResult | EmailAnalysisResult | MemoAnalysisResult
+
+export interface RecordAnalysis {
+  id: string
+  record_id: string
+  version: number
+  result: AnalysisResult
+  analyzed_at: string
+}
+
+// 프로젝트 전체 AI 분석
+export interface ProjectAnalysis {
+  id: string
+  project_id: string
+  version: number
+  summary: string | null
+  confirmed: { content: string; source: string }[]
+  changed: { content: string; from: string; to: string; source: string }[]
+  pending: { content: string; source: string }[]
+  milestones: { date: string; content: string }[]
+  schedules: { date: string; content: string; source: string }[]
+  analyzed_at: string
+}
+
+// 기존 호환용 (점진적 제거)
 export interface Meeting {
   id: string
   project_id: string
@@ -25,14 +120,10 @@ export interface Meeting {
 export interface MeetingAnalysis {
   id: string
   meeting_id: string
+  version: number
   summary: string | null
-  decisions: string | null
-  action_items: ActionItem[] | null
-  analyzed_at: string | null
-}
-
-export interface ActionItem {
-  assignee: string
-  task: string
-  done: boolean
+  decisions: string[]
+  action_items: ActionItem[]
+  schedules: Schedule[]
+  analyzed_at: string
 }
