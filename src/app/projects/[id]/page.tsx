@@ -271,7 +271,7 @@ export default function ProjectPage() {
                           )}
                           {record.type === 'document' && (
                             <p className="text-xs text-slate-400 mt-0.5">
-                              {(meta as DocumentMeta).docType}{(meta as DocumentMeta).version ? ` · ${(meta as DocumentMeta).version}` : ''}
+                              {(meta as unknown as DocumentMeta).docType}{(meta as unknown as DocumentMeta).version ? ` · ${(meta as unknown as DocumentMeta).version}` : ''}
                             </p>
                           )}
                         </div>

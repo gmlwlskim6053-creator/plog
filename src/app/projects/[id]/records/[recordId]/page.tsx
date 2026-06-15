@@ -103,11 +103,11 @@ export default function RecordDetailPage() {
 
         {record.type === 'document' && (
           <div className="mt-4 pt-4 border-t border-slate-100 flex gap-6">
-            {(meta as DocumentMeta).docType && (
-              <span className="text-xs text-slate-400">종류 <span className="text-slate-600 font-medium">{(meta as DocumentMeta).docType}</span></span>
+            {(meta as unknown as DocumentMeta).docType && (
+              <span className="text-xs text-slate-400">종류 <span className="text-slate-600 font-medium">{(meta as unknown as DocumentMeta).docType}</span></span>
             )}
-            {(meta as DocumentMeta).version && (
-              <span className="text-xs text-slate-400">버전 <span className="text-slate-600 font-medium">{(meta as DocumentMeta).version}</span></span>
+            {(meta as unknown as DocumentMeta).version && (
+              <span className="text-xs text-slate-400">버전 <span className="text-slate-600 font-medium">{(meta as unknown as DocumentMeta).version}</span></span>
             )}
           </div>
         )}
@@ -133,7 +133,7 @@ export default function RecordDetailPage() {
       )}
 
       {/* 첨부파일 */}
-      {(record as AppRecord & { attachments?: Attachment[] }).attachments?.length > 0 && (
+      {((record as AppRecord & { attachments?: Attachment[] }).attachments?.length ?? 0) > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 mb-5">
           <p className="text-xs font-medium text-slate-400 mb-3">첨부파일</p>
           <div className="space-y-1.5">
