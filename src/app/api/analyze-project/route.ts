@@ -18,16 +18,47 @@ type DbRecord = {
   content: string
   meta: Record<string, unknown>
   attachments?: { name: string; type: string; extractedText?: string }[]
+  links?: { url: string; note: string }[]
+  is_baseline?: boolean
 }
 
-function buildRecordDetail(r: DbRecord) {
+async function fetchLinkText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Plog-Bot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return ''
+    const html = await res.text()
+    // HTML 태그 제거, 공백 정리
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .slice(0, 3000)
+  } catch {
+    return ''
+  }
+}
+
+async function buildRecordDetail(r: DbRecord) {
   const date = new Date(r.record_date).toLocaleDateString('ko-KR')
   const meta = r.meta
 
   let detail = `[회의] ${r.title} (${date})\n내용: ${r.content.slice(0, 500)}${r.content.length > 500 ? '...' : ''}`
 
   if (r.type === 'email') {
-    detail = `[이메일] ${r.title} (${date})\n발신: ${meta.from ?? ''} → 수신: ${meta.to ?? ''}\n내용: ${r.content.slice(0, 500)}${r.content.length > 500 ? '...' : ''}`
+    const thread = (meta.thread as { date: string; content: string }[] | undefined) ?? []
+    const threadText = thread.length > 0
+      ? '\n답장:\n' + thread.map((t) => `  [${t.date}] ${t.content.slice(0, 300)}${t.content.length > 300 ? '...' : ''}`).join('\n')
+      : ''
+    detail = `[이메일] ${r.title} (${date})\n발신: ${meta.from ?? ''} → 수신: ${meta.to ?? ''}\n내용: ${r.content.slice(0, 500)}${r.content.length > 500 ? '...' : ''}${threadText}`
   } else if (r.type === 'memo') {
     detail = `[메모] ${date} / 출처: ${(meta.source as string) ?? ''}\n내용: ${r.content}`
   } else if (r.type === 'document') {
@@ -39,6 +70,20 @@ function buildRecordDetail(r: DbRecord) {
     detail += '\n첨부파일:\n' + textAtts.map((a) =>
       `[${a.name}]\n${a.extractedText?.slice(0, 1500)}`
     ).join('\n\n')
+  }
+
+  const links = r.links ?? []
+  if (links.length > 0) {
+    const linkTexts = await Promise.all(
+      links.map(async (l) => {
+        const text = await fetchLinkText(l.url)
+        const noteStr = l.note ? ` (비고: ${l.note})` : ''
+        return text
+          ? `[링크${noteStr}] ${l.url}\n${text}`
+          : `[링크${noteStr}] ${l.url}\n(내용을 불러올 수 없습니다)`
+      })
+    )
+    detail += '\n링크:\n' + linkTexts.join('\n\n')
   }
 
   return detail
@@ -108,8 +153,8 @@ export async function POST(req: NextRequest) {
       const baseDocs = parentRecords.filter((r) => r.is_baseline)
       const activityRecs = parentRecords.filter((r) => !r.is_baseline)
       let section = `=== [상위] ${project.name} ===`
-      if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${baseDocs.map(buildRecordDetail).join('\n---\n')}`
-      if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${activityRecs.map(buildRecordDetail).join('\n---\n')}`
+      if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${(await Promise.all(baseDocs.map(buildRecordDetail))).join('\n---\n')}`
+      if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${(await Promise.all(activityRecs.map(buildRecordDetail))).join('\n---\n')}`
       sections.push(section)
     }
 
@@ -120,8 +165,8 @@ export async function POST(req: NextRequest) {
       const baseDocs = childRecords.filter((r) => r.is_baseline)
       const activityRecs = childRecords.filter((r) => !r.is_baseline)
       let section = `=== [하위] ${child.name} (id: ${child.id}) ===`
-      if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${baseDocs.map(buildRecordDetail).join('\n---\n')}`
-      if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${activityRecs.map(buildRecordDetail).join('\n---\n')}`
+      if (baseDocs.length > 0) section += `\n\n[기준 문서]\n${(await Promise.all(baseDocs.map(buildRecordDetail))).join('\n---\n')}`
+      if (activityRecs.length > 0) section += `\n\n[활동 기록]\n${(await Promise.all(activityRecs.map(buildRecordDetail))).join('\n---\n')}`
       sections.push(section)
     }
 
@@ -181,10 +226,10 @@ ${sections.join('\n\n')}
     const activityRecords = records.filter((r) => !r.is_baseline)
 
     const baseSummary = baseDocuments.length > 0
-      ? `=== 기준 문서 ===\n\n${baseDocuments.map(buildRecordDetail).join('\n\n---\n\n')}`
+      ? `=== 기준 문서 ===\n\n${(await Promise.all(baseDocuments.map(buildRecordDetail))).join('\n\n---\n\n')}`
       : ''
     const activitySummary = activityRecords.length > 0
-      ? `=== 활동 기록 ===\n\n${activityRecords.map(buildRecordDetail).join('\n\n---\n\n')}`
+      ? `=== 활동 기록 ===\n\n${(await Promise.all(activityRecords.map(buildRecordDetail))).join('\n\n---\n\n')}`
       : ''
 
     const hasBaseDoc = baseDocuments.length > 0

@@ -12,17 +12,9 @@ interface ProjectStats {
   nearestSchedule: { date: string; content: string } | null
 }
 
-interface UpcomingSchedule {
-  date: string
-  content: string
-  projectId: string
-  projectName: string
-}
-
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [stats, setStats] = useState<Record<string, ProjectStats>>({})
-  const [upcoming, setUpcoming] = useState<UpcomingSchedule[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -85,17 +77,6 @@ export default function HomePage() {
     }
     setStats(statsMap)
 
-    // 프로젝트별 핵심 마일스톤 수집
-    const allSchedules: UpcomingSchedule[] = []
-    for (const [pid, analysis] of latestAnalysis.entries()) {
-      const project = list.find((p) => p.id === pid)
-      if (!project) continue
-      const milestones = (analysis as { milestones?: { date: string; content: string }[] }).milestones ?? []
-      for (const s of milestones) {
-        allSchedules.push({ date: s.date, content: s.content, projectId: pid, projectName: project.name })
-      }
-    }
-    setUpcoming(allSchedules)
     setLoading(false)
   }
 
@@ -154,44 +135,6 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            {/* 일정 WBS */}
-            {upcoming.length > 0 && (
-              <section>
-                <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">일정</h2>
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  {Array.from(
-                    upcoming.reduce((map, s) => {
-                      if (!map.has(s.projectId)) map.set(s.projectId, { projectName: s.projectName, projectId: s.projectId, schedules: [] })
-                      map.get(s.projectId)!.schedules.push(s)
-                      return map
-                    }, new Map<string, { projectName: string; projectId: string; schedules: UpcomingSchedule[] }>())
-                  ).map(([, group], gi, arr) => (
-                    <div key={group.projectId} className={gi < arr.length - 1 ? 'border-b border-slate-100' : ''}>
-                      {/* 프로젝트 행 */}
-                      <Link href={`/projects/${group.projectId}`}>
-                        <div className="flex items-center gap-3 px-5 py-3 bg-slate-50 hover:bg-blue-50 transition-colors group">
-                          <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                          <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">{group.projectName}</span>
-                        </div>
-                      </Link>
-                      {/* 일정 항목 행 */}
-                      {group.schedules.map((s, i) => (
-                        <Link key={i} href={`/projects/${group.projectId}`}>
-                          <div className="flex items-center justify-between px-5 py-3 pl-10 border-t border-slate-50 hover:bg-slate-50 transition-colors group">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-px h-4 bg-slate-200 shrink-0" />
-                              <span className="text-sm text-slate-600 truncate">{s.content}</span>
-                            </div>
-                            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg shrink-0 ml-4">{s.date}</span>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* 프로젝트 목록 */}
             <section>
               <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">프로젝트</h2>

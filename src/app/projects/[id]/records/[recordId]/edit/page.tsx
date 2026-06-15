@@ -4,8 +4,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { DepartmentAttendee, Project, RecordType, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, Attachment } from '@/types'
+import { DepartmentAttendee, Project, RecordType, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, Attachment, RecordLink } from '@/types'
 import { AttachmentsInput } from '@/components/attachments-input'
+import { LinksInput } from '@/components/links-input'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AttendeesInput } from '@/components/attendees-input'
@@ -34,6 +35,7 @@ export default function EditRecordPage() {
   const [docVersion, setDocVersion] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isBaseline, setIsBaseline] = useState(false)
+  const [links, setLinks] = useState<RecordLink[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -62,6 +64,7 @@ export default function EditRecordPage() {
         }
         setAttachments(rec.attachments ?? [])
         setIsBaseline(rec.is_baseline ?? false)
+        setLinks(rec.links ?? [])
       }
     }
     fetchData()
@@ -103,6 +106,7 @@ export default function EditRecordPage() {
       meta: buildMeta(),
       attachments,
       is_baseline: isBaseline,
+      links,
       updated_at: new Date().toISOString(),
     }).eq('id', recordId)
     setSaving(false)
@@ -208,6 +212,12 @@ export default function EditRecordPage() {
             ))}
           </div>
         )}
+
+        {/* 링크 */}
+        <div>
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">링크</label>
+          <LinksInput value={links} onChange={setLinks} />
+        </div>
 
         <div>
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">첨부파일</label>

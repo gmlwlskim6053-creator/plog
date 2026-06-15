@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { DepartmentAttendee, Project, RecordType, DocumentMeta, Attachment } from '@/types'
+import { DepartmentAttendee, Project, RecordType, DocumentMeta, Attachment, RecordLink } from '@/types'
 import { AttachmentsInput } from '@/components/attachments-input'
+import { LinksInput } from '@/components/links-input'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { AttendeesInput } from '@/components/attendees-input'
@@ -44,6 +45,7 @@ export default function NewRecordPage() {
   // attachments
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isBaseline, setIsBaseline] = useState(false)
+  const [links, setLinks] = useState<RecordLink[]>([])
   // document
   const [docType, setDocType] = useState('')
   const [docVersion, setDocVersion] = useState('')
@@ -101,6 +103,7 @@ export default function NewRecordPage() {
       meta: buildMeta(),
       attachments,
       is_baseline: isBaseline,
+      links,
     }).select().single()
     setSaving(false)
     if (data) router.push(`/projects/${id}/records/${data.id}`)
@@ -269,6 +272,12 @@ export default function NewRecordPage() {
             ))}
           </div>
         )}
+
+        {/* 링크 */}
+        <div>
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">링크</label>
+          <LinksInput value={links} onChange={setLinks} />
+        </div>
 
         {/* 첨부파일 */}
         <div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Project, Record as AppRecord, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, Attachment } from '@/types'
+import { Project, Record as AppRecord, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, Attachment, RecordLink } from '@/types'
 import { getDeptColor } from '@/lib/utils'
 import { PageLayout } from '@/components/layout'
 
@@ -112,6 +112,25 @@ export default function RecordDetailPage() {
           </div>
         )}
       </div>
+
+      {/* 링크 */}
+      {(record.links?.length ?? 0) > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 mb-5">
+          <p className="text-xs font-medium text-slate-400 mb-3">링크</p>
+          <div className="space-y-2">
+            {(record.links as RecordLink[]).map((link, i) => (
+              <div key={i} className="flex items-start gap-3 bg-slate-50 rounded-lg px-3 py-2.5">
+                <span className="text-slate-400 mt-0.5 shrink-0">🔗</span>
+                <div className="min-w-0">
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate block">{link.url}</a>
+                  {link.note && <p className="text-xs text-slate-400 mt-0.5">{link.note}</p>}
+                </div>
+                <span className="text-xs text-emerald-600 shrink-0 mt-0.5">AI 분석에 포함</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 첨부파일 */}
       {(record as AppRecord & { attachments?: Attachment[] }).attachments?.length > 0 && (

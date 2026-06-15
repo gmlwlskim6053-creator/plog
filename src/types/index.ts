@@ -49,6 +49,11 @@ export interface Attachment {
   extractedText?: string
 }
 
+export interface RecordLink {
+  url: string
+  note: string
+}
+
 export type RecordMeta = MeetingMeta | EmailMeta | MemoMeta
 
 export interface Record {
@@ -60,6 +65,7 @@ export interface Record {
   content: string
   meta: RecordMeta
   is_baseline: boolean
+  links: RecordLink[]
   created_at: string
   updated_at: string
 }
