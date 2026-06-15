@@ -92,6 +92,17 @@ export interface RecordAnalysis {
   analyzed_at: string
 }
 
+// 하위 프로젝트별 분석 결과
+export interface SubProjectAnalysis {
+  project_id: string
+  project_name: string
+  summary: string
+  confirmed: { content: string; source: string }[]
+  changed: { content: string; from: string; to: string; source: string }[]
+  pending: { content: string; source: string }[]
+  schedules: { date: string; content: string; source: string }[]
+}
+
 // 프로젝트 전체 AI 분석
 export interface ProjectAnalysis {
   id: string
@@ -103,6 +114,7 @@ export interface ProjectAnalysis {
   pending: { content: string; source: string }[]
   milestones: { date: string; content: string }[]
   schedules: { date: string; content: string; source: string }[]
+  sub_projects: SubProjectAnalysis[]
   analyzed_at: string
 }
 

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getDeptColor } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import { Project, Record as AppRecord, ProjectAnalysis, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, RecordType } from '@/types'
+import { Project, Record as AppRecord, ProjectAnalysis, SubProjectAnalysis, MeetingMeta, EmailMeta, MemoMeta, DocumentMeta, RecordType } from '@/types'
 import { PageLayout } from '@/components/layout'
 import { ProjectEditDialog } from '@/components/project-edit-dialog'
 
@@ -19,6 +19,87 @@ const TYPE_COLORS: Record<RecordType, string> = {
 
 type Tab = 'records' | 'analysis'
 
+function AnalysisSection({ data }: { data: Pick<SubProjectAnalysis, 'confirmed' | 'changed' | 'pending' | 'schedules'> & { summary?: string } }) {
+  return (
+    <div className="space-y-5">
+      {data.summary && (
+        <div className="bg-slate-50 rounded-xl px-5 py-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">요약</p>
+          <p className="text-sm text-slate-700 leading-7">{data.summary}</p>
+        </div>
+      )}
+
+      {data.confirmed.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-widest mb-3">✅ 확정된 사항</p>
+          <div className="space-y-2">
+            {data.confirmed.map((item, i) => (
+              <div key={i} className="bg-emerald-50 rounded-xl px-5 py-3.5">
+                <p className="text-sm text-slate-700 leading-6">{item.content}</p>
+                {item.source && <p className="text-xs text-emerald-600 mt-1.5">{item.source}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.changed.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest mb-3">🔄 변경된 사항</p>
+          <div className="space-y-2">
+            {data.changed.map((item, i) => (
+              <div key={i} className="bg-amber-50 rounded-xl px-5 py-3.5">
+                <p className="text-sm font-medium text-slate-700 leading-6 mb-2">{item.content}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-slate-400 line-through">{item.from}</span>
+                  <span className="text-slate-400">→</span>
+                  <span className="text-amber-700 font-semibold">{item.to}</span>
+                </div>
+                {item.source && <p className="text-xs text-amber-600 mt-1.5">{item.source}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.pending.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-red-500 uppercase tracking-widest mb-3">⚠️ 미결 사항</p>
+          <div className="space-y-2">
+            {data.pending.map((item, i) => (
+              <div key={i} className="bg-red-50 rounded-xl px-5 py-3.5">
+                <p className="text-sm text-slate-700 leading-6">{item.content}</p>
+                {item.source && <p className="text-xs text-red-400 mt-1.5">{item.source}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.schedules.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-widest mb-3">📅 일정</p>
+          <div className="space-y-2">
+            {data.schedules.map((item, i) => (
+              <div key={i} className="bg-blue-50 rounded-xl px-5 py-3.5 flex items-start gap-3">
+                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-lg shrink-0 mt-0.5">{item.date}</span>
+                <div className="min-w-0">
+                  <p className="text-sm text-slate-700 leading-6">{item.content}</p>
+                  {item.source && <p className="text-xs text-blue-400 mt-1">{item.source}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.confirmed.length === 0 && data.changed.length === 0 && data.pending.length === 0 && data.schedules.length === 0 && (
+        <p className="text-slate-400 text-sm text-center py-6">분석된 내용이 없습니다.</p>
+      )}
+    </div>
+  )
+}
+
 export default function ProjectPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -27,6 +108,7 @@ export default function ProjectPage() {
   const [records, setRecords] = useState<AppRecord[]>([])
   const [projectAnalyses, setProjectAnalyses] = useState<ProjectAnalysis[]>([])
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null)
+  const [selectedSubProject, setSelectedSubProject] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -44,7 +126,12 @@ export default function ProjectPage() {
     setProject(proj)
     setRecords(recs ?? [])
     setProjectAnalyses(analyses ?? [])
-    if (analyses && analyses.length > 0) setSelectedVersion(analyses[0].version)
+    if (analyses && analyses.length > 0) {
+      setSelectedVersion(analyses[0].version)
+      // 하위 프로젝트가 있으면 첫 번째 선택
+      const first = analyses[0].sub_projects?.[0]
+      setSelectedSubProject(first?.project_id ?? null)
+    }
 
     if (proj?.parent_id) {
       const { data: parent } = await supabase.from('projects').select('*').eq('id', proj.parent_id).single()
@@ -82,9 +169,15 @@ export default function ProjectPage() {
   }
 
   const currentAnalysis = projectAnalyses.find((a) => a.version === selectedVersion) ?? null
+  const hasSubProjects = (currentAnalysis?.sub_projects?.length ?? 0) > 0
+
+  // 선택된 하위 프로젝트 분석 or 전체(단일 프로젝트) 분석
+  const activeSubAnalysis = hasSubProjects
+    ? currentAnalysis?.sub_projects?.find((s) => s.project_id === selectedSubProject) ?? null
+    : null
 
   const breadcrumbs = project ? [
-    ...(parentProject ? [{ label: parentProject.name }] : []),
+    ...(parentProject ? [{ label: parentProject.name, href: `/projects/${parentProject.id}` }] : []),
     { label: project.name },
   ] : []
 
@@ -108,17 +201,22 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* 탭 */}
+      {/* 탭 — 하위 프로젝트(parent_id 있음)는 분석 탭 숨김 */}
       <div className="flex gap-1 mb-4 bg-slate-100 rounded-lg p-1 w-fit">
-        {(['records', 'analysis'] as Tab[]).map((t) => (
+        <button
+          onClick={() => setTab('records')}
+          className={`text-sm px-4 py-1.5 rounded-md font-medium transition-colors ${tab === 'records' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          기록 ({records.length})
+        </button>
+        {!project.parent_id && (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`text-sm px-4 py-1.5 rounded-md font-medium transition-colors ${tab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setTab('analysis')}
+            className={`text-sm px-4 py-1.5 rounded-md font-medium transition-colors ${tab === 'analysis' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            {t === 'records' ? `기록 (${records.length})` : '프로젝트 현황 분석'}
+            프로젝트 현황 분석
           </button>
-        ))}
+        )}
       </div>
 
       {/* 기록 목록 탭 */}
@@ -196,6 +294,7 @@ export default function ProjectPage() {
       {/* 프로젝트 현황 분석 탭 */}
       {tab === 'analysis' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5">
+          {/* 분석 헤더 */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-slate-700">프로젝트 현황 분석</p>
@@ -203,7 +302,12 @@ export default function ProjectPage() {
                 <select
                   className="text-xs border border-slate-200 rounded px-2 py-0.5 text-slate-600"
                   value={selectedVersion ?? ''}
-                  onChange={(e) => setSelectedVersion(Number(e.target.value))}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setSelectedVersion(v)
+                    const a = projectAnalyses.find((x) => x.version === v)
+                    setSelectedSubProject(a?.sub_projects?.[0]?.project_id ?? null)
+                  }}
                 >
                   {projectAnalyses.map((a) => (
                     <option key={a.version} value={a.version}>
@@ -215,93 +319,78 @@ export default function ProjectPage() {
             </div>
             <button
               onClick={() => setPasswordModal(true)}
-              disabled={records.length === 0}
-              className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium transition-colors"
             >
               ✨ {projectAnalyses.length > 0 ? '재분석' : '전체 분석 시작'}
             </button>
           </div>
 
           {currentAnalysis ? (
-            <div className="space-y-6">
-              {/* 요약 */}
-              <div className="bg-slate-50 rounded-xl px-5 py-4">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">전체 요약</p>
-                <p className="text-sm text-slate-700 leading-7">{currentAnalysis.summary}</p>
-              </div>
+            <div>
+              {/* 전체 요약 */}
+              {currentAnalysis.summary && (
+                <div className="bg-slate-50 rounded-xl px-5 py-4 mb-6">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">전체 요약</p>
+                  <p className="text-sm text-slate-700 leading-7">{currentAnalysis.summary}</p>
+                </div>
+              )}
 
-              {/* 확정 */}
-              {currentAnalysis.confirmed.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-widest mb-3">✅ 확정된 사항</p>
-                  <div className="space-y-2">
-                    {currentAnalysis.confirmed.map((item, i) => (
-                      <div key={i} className="bg-emerald-50 rounded-xl px-5 py-3.5">
-                        <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                        {item.source && <p className="text-xs text-emerald-600 mt-1.5">{item.source}</p>}
+              {/* 핵심 마일스톤 */}
+              {currentAnalysis.milestones?.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">🏁 핵심 마일스톤</p>
+                  <div className="flex flex-col gap-2">
+                    {currentAnalysis.milestones.map((m, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1 rounded-lg shrink-0">{m.date}</span>
+                        <p className="text-sm text-slate-700">{m.content}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* 변경 */}
-              {currentAnalysis.changed.length > 0 && (
+              {/* 하위 프로젝트별 분석 */}
+              {hasSubProjects ? (
                 <div>
-                  <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest mb-3">🔄 변경된 사항</p>
-                  <div className="space-y-2">
-                    {currentAnalysis.changed.map((item, i) => (
-                      <div key={i} className="bg-amber-50 rounded-xl px-5 py-3.5">
-                        <p className="text-sm font-medium text-slate-700 leading-6 mb-2">{item.content}</p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="text-slate-400 line-through">{item.from}</span>
-                          <span className="text-slate-400">→</span>
-                          <span className="text-amber-700 font-semibold">{item.to}</span>
-                        </div>
-                        {item.source && <p className="text-xs text-amber-600 mt-1.5">{item.source}</p>}
-                      </div>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">하위 프로젝트별 현황</p>
+                  {/* 하위 프로젝트 탭 */}
+                  <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
+                    {currentAnalysis.sub_projects!.map((sp) => (
+                      <button
+                        key={sp.project_id}
+                        onClick={() => setSelectedSubProject(sp.project_id)}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0 ${
+                          selectedSubProject === sp.project_id
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {sp.project_name}
+                      </button>
                     ))}
                   </div>
-                </div>
-              )}
 
-              {/* 미결 */}
-              {currentAnalysis.pending.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-red-500 uppercase tracking-widest mb-3">⚠️ 미결 사항</p>
-                  <div className="space-y-2">
-                    {currentAnalysis.pending.map((item, i) => (
-                      <div key={i} className="bg-red-50 rounded-xl px-5 py-3.5">
-                        <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                        {item.source && <p className="text-xs text-red-400 mt-1.5">{item.source}</p>}
-                      </div>
-                    ))}
-                  </div>
+                  {activeSubAnalysis && (
+                    <AnalysisSection data={activeSubAnalysis} />
+                  )}
                 </div>
-              )}
-
-              {/* 일정 */}
-              {currentAnalysis.schedules.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-widest mb-3">📅 일정</p>
-                  <div className="space-y-2">
-                    {currentAnalysis.schedules.map((item, i) => (
-                      <div key={i} className="bg-blue-50 rounded-xl px-5 py-3.5 flex items-start gap-3">
-                        <span className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-lg shrink-0 mt-0.5">{item.date}</span>
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                          {item.source && <p className="text-xs text-blue-400 mt-1">{item.source}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              ) : (
+                /* 단일 프로젝트 분석 */
+                <AnalysisSection data={{
+                  summary: undefined,
+                  confirmed: currentAnalysis.confirmed,
+                  changed: currentAnalysis.changed,
+                  pending: currentAnalysis.pending,
+                  schedules: currentAnalysis.schedules,
+                }} />
               )}
             </div>
           ) : (
             <div className="text-center py-12">
               <p className="text-slate-400 text-sm mb-1">아직 분석된 내용이 없습니다.</p>
-              <p className="text-slate-300 text-xs">기록을 추가한 후 전체 분석을 실행하세요.</p>
+              <p className="text-slate-300 text-xs">분석 시작 버튼을 눌러 전체 분석을 실행하세요.</p>
+              <p className="text-slate-300 text-xs mt-1">상위 프로젝트에서 분석하면 하위 프로젝트별로 나눠서 볼 수 있습니다.</p>
             </div>
           )}
         </div>
@@ -321,7 +410,7 @@ export default function ProjectPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="text-base font-bold text-slate-800 mb-1">프로젝트 전체 분석</h2>
-            <p className="text-xs text-slate-400 mb-4">모든 기록을 종합 분석합니다. 권한을 확인합니다.</p>
+            <p className="text-xs text-slate-400 mb-4">하위 프로젝트를 포함한 모든 기록을 종합 분석합니다.</p>
             <input
               type="password"
               placeholder="비밀번호 입력"

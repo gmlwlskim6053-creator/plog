@@ -207,24 +207,23 @@ export default function HomePage() {
                       {hasChildren ? (
                         /* 하위 프로젝트가 있는 부모 */
                         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                          <button
-                            className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                            onClick={() => toggleExpand(project.id)}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full bg-blue-400" />
-                              <span className="font-semibold text-slate-800">{project.name}</span>
+                          <div className="px-5 py-4 flex items-center justify-between">
+                            <Link href={`/projects/${project.id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+                              <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                              <span className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">{project.name}</span>
                               {project.description && (
                                 <span className="text-sm text-slate-400 hidden sm:inline">{project.description}</span>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                            </Link>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
                               <span className="bg-slate-100 px-2 py-0.5 rounded-full">{children.length}개 하위</span>
-                              <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
+                              <button onClick={() => toggleExpand(project.id)} className="p-1 hover:bg-slate-100 rounded transition-colors">
+                                <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
                             </div>
-                          </button>
+                          </div>
 
                           {isExpanded && (
                             <div className="border-t border-slate-100 divide-y divide-slate-100">
