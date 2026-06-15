@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Meeting, Project } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { getDeptColor } from '@/lib/utils'
+import { PageLayout } from '@/components/layout'
 
 export default function MeetingDetailPage() {
   const { id, meetingId } = useParams<{ id: string; meetingId: string }>()
@@ -34,61 +34,80 @@ export default function MeetingDetailPage() {
     router.push(`/projects/${id}`)
   }
 
-  if (loading) return <div className="max-w-4xl mx-auto px-4 py-10">불러오는 중...</div>
-  if (!meeting) return <div className="max-w-4xl mx-auto px-4 py-10">회의록을 찾을 수 없습니다.</div>
+  const breadcrumbs = [
+    { label: project?.name ?? '프로젝트', href: `/projects/${id}` },
+    { label: meeting?.title ?? '회의록' },
+  ]
+
+  if (loading) return (
+    <PageLayout>
+      <div className="flex items-center justify-center py-24 text-slate-400">불러오는 중...</div>
+    </PageLayout>
+  )
+  if (!meeting) return (
+    <PageLayout>
+      <div className="text-center py-24 text-slate-400">회의록을 찾을 수 없습니다.</div>
+    </PageLayout>
+  )
 
   const heldAt = new Date(meeting.held_at).toLocaleDateString('ko-KR', {
     year: 'numeric', month: 'long', day: 'numeric',
   })
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link href="/" className="hover:underline">프로젝트</Link>
-        <span>/</span>
-        <Link href={`/projects/${id}`} className="hover:underline">{project?.name}</Link>
-        <span>/</span>
-        <span>{meeting.title}</span>
-      </div>
-
-      <div className="flex items-start justify-between mb-6">
-        <h1 className="text-2xl font-bold">{meeting.title}</h1>
-        <div className="flex gap-2">
-          <Link href={`/projects/${id}/meetings/${meetingId}/edit`}>
-            <Button variant="outline">수정</Button>
-          </Link>
-          <Button variant="outline" className="text-red-500 hover:text-red-600" onClick={handleDelete}>삭제</Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
-        <span>📅 {heldAt}</span>
-      </div>
-
-      {meeting.attendees.length > 0 && (
-        <div className="mb-6 space-y-2">
-          <h2 className="text-sm font-medium text-gray-500">참석자</h2>
-          <div className="flex flex-wrap gap-3">
-            {meeting.attendees.map((dept, i) => (
-              <div key={i} className="bg-gray-50 border rounded-lg px-3 py-2">
-                <p className="text-xs font-medium text-gray-500 mb-1">{dept.department}</p>
-                <div className="flex flex-wrap gap-1">
-                  {dept.members.map((m) => (
-                    <Badge key={m} variant="secondary">{m}</Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
+    <PageLayout breadcrumbs={breadcrumbs}>
+      {/* 회의록 헤더 */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 mb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">{meeting.title}</h1>
+            <p className="text-sm text-slate-400 mt-1">📅 {heldAt}</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link href={`/projects/${id}/meetings/${meetingId}/edit`}>
+              <button className="text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                수정
+              </button>
+            </Link>
+            <button
+              onClick={handleDelete}
+              className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+            >
+              삭제
+            </button>
           </div>
         </div>
-      )}
 
-      <div className="bg-white rounded-xl border p-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-4">회의 내용</h2>
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
+        {/* 참석자 */}
+        {meeting.attendees.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-xs font-medium text-slate-400 mb-2">참석자</p>
+            <div className="flex flex-wrap gap-3">
+              {meeting.attendees.map((dept, i) => {
+                const color = getDeptColor(dept.department)
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={`text-[11px] font-normal px-1.5 py-0.5 rounded ${color.bg} ${color.text}`}>
+                      {dept.department}
+                    </span>
+                    <span className="text-xs text-slate-600">
+                      {dept.members.join(', ')}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 회의 내용 */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5">
+        <p className="text-xs font-medium text-slate-400 mb-4">회의 내용</p>
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-slate-700">
           {meeting.content}
         </pre>
       </div>
-    </div>
+    </PageLayout>
   )
 }
