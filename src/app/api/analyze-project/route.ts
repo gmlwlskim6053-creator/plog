@@ -209,7 +209,7 @@ ${sections.join('\n\n')}
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
+      max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -217,7 +217,14 @@ ${sections.join('\n\n')}
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
 
-    result = JSON.parse(jsonMatch[0])
+    try {
+      result = JSON.parse(jsonMatch[0])
+    } catch {
+      return NextResponse.json(
+        { error: '분석 결과가 너무 길어 처리할 수 없습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 500 }
+      )
+    }
 
   } else {
     // ── 하위 프로젝트 없음: 기존 방식 ──
@@ -258,7 +265,7 @@ ${hasBaseDoc ? `- 기준 문서를 기반으로 confirmed/changed/pending을 채
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -266,7 +273,14 @@ ${hasBaseDoc ? `- 기준 문서를 기반으로 confirmed/changed/pending을 채
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
 
-    result = JSON.parse(jsonMatch[0])
+    try {
+      result = JSON.parse(jsonMatch[0])
+    } catch {
+      return NextResponse.json(
+        { error: '분석 결과가 너무 길어 처리할 수 없습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 500 }
+      )
+    }
   }
 
   const { data: analysis } = await supabase
