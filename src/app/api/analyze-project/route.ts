@@ -192,9 +192,9 @@ ${sections.join('\n\n')}
       "project_id": "하위 프로젝트 id (위 목록의 id 그대로)",
       "project_name": "하위 프로젝트명",
       "summary": "이 하위 프로젝트 현황 요약 (2~3문장)",
-      "confirmed": [{ "content": "확정된 사항", "source": "출처" }],
-      "changed": [{ "content": "변경 내용", "from": "기존", "to": "변경 후", "source": "출처" }],
-      "pending": [{ "content": "미결 사항", "source": "출처" }],
+      "confirmed": [{ "category": "카테고리명", "content": "확정된 사항", "source": "출처" }],
+      "changed": [{ "category": "카테고리명", "content": "변경 내용", "from": "기존", "to": "변경 후", "source": "출처" }],
+      "pending": [{ "category": "카테고리명", "content": "미결 사항", "source": "출처" }],
       "schedules": [{ "date": "날짜", "content": "세부 일정", "source": "출처" }]
     }
   ]
@@ -205,6 +205,7 @@ ${sections.join('\n\n')}
 - 상위 프로젝트 자체 기록(기준 문서 등)은 모든 하위 프로젝트 분석의 기준으로 활용하세요.
 - 기준 문서가 있으면 그것을 기반으로 confirmed/changed/pending을 채우세요.
 - milestones는 전체 프로젝트를 대표하는 핵심 시점만 3~6개.
+- category는 해당 항목의 성격에 맞는 한국어 카테고리명 (예: 기획, 홍보, 개발, 심사, 운영, 법무, 디자인, 예산 등 프로젝트에 맞게 자유롭게).
 - 없는 항목은 빈 배열로 반환하세요.`
 
     const message = await anthropic.messages.create({
@@ -250,9 +251,9 @@ ${[baseSummary, activitySummary].filter(Boolean).join('\n\n')}
 
 {
   "summary": "프로젝트 전체 현황 3~5문장 요약",
-  "confirmed": [{ "content": "확정 사항", "source": "출처" }],
-  "changed": [{ "content": "변경 내용", "from": "기존", "to": "변경 후", "source": "출처" }],
-  "pending": [{ "content": "미결 사항", "source": "출처" }],
+  "confirmed": [{ "category": "카테고리명", "content": "확정 사항", "source": "출처" }],
+  "changed": [{ "category": "카테고리명", "content": "변경 내용", "from": "기존", "to": "변경 후", "source": "출처" }],
+  "pending": [{ "category": "카테고리명", "content": "미결 사항", "source": "출처" }],
   "milestones": [{ "date": "날짜 또는 '미정'", "content": "핵심 마일스톤 (3~6개)" }],
   "schedules": [{ "date": "날짜", "content": "세부 일정", "source": "출처" }],
   "sub_projects": []
@@ -261,6 +262,7 @@ ${[baseSummary, activitySummary].filter(Boolean).join('\n\n')}
 규칙:
 ${hasBaseDoc ? `- 기준 문서를 기반으로 confirmed/changed/pending을 채우세요.` : `- 활동 기록에서 confirmed/changed/pending을 추출하세요.`}
 - milestones는 핵심 시점만 3~6개.
+- category는 해당 항목의 성격에 맞는 한국어 카테고리명 (예: 기획, 홍보, 개발, 심사, 운영, 법무, 디자인, 예산 등 프로젝트에 맞게 자유롭게).
 - 없으면 빈 배열.`
 
     const message = await anthropic.messages.create({

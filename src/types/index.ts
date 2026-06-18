@@ -104,9 +104,9 @@ export interface SubProjectAnalysis {
   project_id: string
   project_name: string
   summary: string
-  confirmed: { content: string; source: string }[]
-  changed: { content: string; from: string; to: string; source: string }[]
-  pending: { content: string; source: string }[]
+  confirmed: { category: string; content: string; source: string }[]
+  changed: { category: string; content: string; from: string; to: string; source: string }[]
+  pending: { category: string; content: string; source: string }[]
   schedules: { date: string; content: string; source: string }[]
 }
 
@@ -116,9 +116,9 @@ export interface ProjectAnalysis {
   project_id: string
   version: number
   summary: string | null
-  confirmed: { content: string; source: string }[]
-  changed: { content: string; from: string; to: string; source: string }[]
-  pending: { content: string; source: string }[]
+  confirmed: { category: string; content: string; source: string }[]
+  changed: { category: string; content: string; from: string; to: string; source: string }[]
+  pending: { category: string; content: string; source: string }[]
   milestones: { date: string; content: string }[]
   schedules: { date: string; content: string; source: string }[]
   sub_projects: SubProjectAnalysis[]

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getDeptColor } from '@/lib/utils'
@@ -19,73 +19,188 @@ const TYPE_COLORS: Record<RecordType, string> = {
 
 type Tab = 'records' | 'analysis'
 
-function AnalysisSection({ data }: { data: Pick<SubProjectAnalysis, 'confirmed' | 'changed' | 'pending' | 'schedules'> & { summary?: string } }) {
+function groupByCategory<T extends { category?: string }>(items: T[]): { category: string; items: T[] }[] {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    const cat = item.category ?? '기타'
+    if (!map.has(cat)) map.set(cat, [])
+    map.get(cat)!.push(item)
+  }
+  return Array.from(map.entries()).map(([category, items]) => ({ category, items }))
+}
+
+function CategoryCard({
+  title,
+  count,
+  colorClass,
+  children,
+}: {
+  title: string
+  count: number
+  colorClass: { bg: string; text: string; badge: string; badgeText: string }
+  children: React.ReactNode
+}) {
   return (
-    <div className="space-y-5">
+    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex-1 min-w-0">
+      <div className={`flex items-center gap-1.5 mb-3`}>
+        <p className={`text-xs font-semibold ${colorClass.text}`}>{title}</p>
+        <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${colorClass.badge} ${colorClass.badgeText}`}>{count}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function CategoryGroup<T extends { category?: string; content: string; source?: string }>({
+  groups,
+  dotColor,
+  renderItem,
+}: {
+  groups: { category: string; items: T[] }[]
+  dotColor: string
+  renderItem: (item: T, i: number) => React.ReactNode
+}) {
+  const [open, setOpen] = useState<Set<string>>(new Set())
+
+  function toggle(cat: string) {
+    setOpen((prev) => {
+      const next = new Set(prev)
+      next.has(cat) ? next.delete(cat) : next.add(cat)
+      return next
+    })
+  }
+
+  if (groups.length === 0) return <p className="text-xs text-slate-400 py-2">없음</p>
+
+  return (
+    <div>
+      {groups.map(({ category, items }) => (
+        <div key={category}>
+          <button
+            onClick={() => toggle(category)}
+            className="w-full flex items-center justify-between py-2 border-b border-slate-100 last:border-b-0 text-left"
+          >
+            <span className="text-[13px] font-medium text-slate-700">{category}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-400">{items.length}개</span>
+              <svg
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open.has(category) ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </button>
+          {open.has(category) && (
+            <div className="pl-3 py-1 border-b border-slate-100 last:border-b-0">
+              {items.map((item, i) => renderItem(item, i))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AnalysisSection({
+  data,
+}: {
+  data: Pick<SubProjectAnalysis, 'confirmed' | 'changed' | 'pending' | 'schedules'> & { summary?: string }
+}) {
+  const confirmedGroups = groupByCategory(data.confirmed)
+  const changedGroups = groupByCategory(data.changed)
+  const pendingGroups = groupByCategory(data.pending)
+
+  return (
+    <div className="space-y-4">
       {data.summary && (
-        <div className="bg-slate-50 rounded-xl px-5 py-4">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">요약</p>
-          <p className="text-sm text-slate-700 leading-7">{data.summary}</p>
+        <div className="bg-slate-50 rounded-xl px-4 py-3">
+          <p className="text-sm text-slate-600 leading-7">{data.summary}</p>
         </div>
       )}
 
-      {data.confirmed.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-widest mb-3">✅ 확정된 사항</p>
-          <div className="space-y-2">
-            {data.confirmed.map((item, i) => (
-              <div key={i} className="bg-emerald-50 rounded-xl px-5 py-3.5">
-                <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                {item.source && <p className="text-xs text-emerald-600 mt-1.5">{item.source}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.changed.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest mb-3">🔄 변경된 사항</p>
-          <div className="space-y-2">
-            {data.changed.map((item, i) => (
-              <div key={i} className="bg-amber-50 rounded-xl px-5 py-3.5">
-                <p className="text-sm font-medium text-slate-700 leading-6 mb-2">{item.content}</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="text-slate-400 line-through">{item.from}</span>
-                  <span className="text-slate-400">→</span>
-                  <span className="text-amber-700 font-semibold">{item.to}</span>
+      <div className="flex gap-3 flex-wrap">
+        {/* 확정 */}
+        <CategoryCard
+          title="확정 사항"
+          count={data.confirmed.length}
+          colorClass={{ bg: '', text: 'text-emerald-700', badge: 'bg-emerald-50', badgeText: 'text-emerald-700' }}
+        >
+          <CategoryGroup
+            groups={confirmedGroups}
+            dotColor="bg-emerald-400"
+            renderItem={(item, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
+                  {item.source && <p className="text-[11px] text-emerald-600 mt-0.5">{item.source}</p>}
                 </div>
-                {item.source && <p className="text-xs text-amber-600 mt-1.5">{item.source}</p>}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
+          />
+        </CategoryCard>
 
-      {data.pending.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold text-red-500 uppercase tracking-widest mb-3">⚠️ 미결 사항</p>
-          <div className="space-y-2">
-            {data.pending.map((item, i) => (
-              <div key={i} className="bg-red-50 rounded-xl px-5 py-3.5">
-                <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                {item.source && <p className="text-xs text-red-400 mt-1.5">{item.source}</p>}
+        {/* 미결 */}
+        <CategoryCard
+          title="미결 사항"
+          count={data.pending.length}
+          colorClass={{ bg: '', text: 'text-amber-700', badge: 'bg-amber-50', badgeText: 'text-amber-700' }}
+        >
+          <CategoryGroup
+            groups={pendingGroups}
+            dotColor="bg-amber-400"
+            renderItem={(item, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
+                  {item.source && <p className="text-[11px] text-amber-600 mt-0.5">{item.source}</p>}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
+          />
+        </CategoryCard>
+
+        {/* 변경 */}
+        <CategoryCard
+          title="변경 사항"
+          count={data.changed.length}
+          colorClass={{ bg: '', text: 'text-blue-700', badge: 'bg-blue-50', badgeText: 'text-blue-700' }}
+        >
+          <CategoryGroup
+            groups={changedGroups}
+            dotColor="bg-blue-400"
+            renderItem={(item, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
+                  {(item.from || item.to) && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      <span className="line-through">{item.from}</span>
+                      {item.from && item.to && ' → '}
+                      <span className="text-blue-600 font-medium">{item.to}</span>
+                    </p>
+                  )}
+                  {item.source && <p className="text-[11px] text-blue-500 mt-0.5">{item.source}</p>}
+                </div>
+              </div>
+            )}
+          />
+        </CategoryCard>
+      </div>
 
       {data.schedules.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-widest mb-3">📅 일정</p>
-          <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">일정</p>
+          <div className="space-y-1.5">
             {data.schedules.map((item, i) => (
-              <div key={i} className="bg-blue-50 rounded-xl px-5 py-3.5 flex items-start gap-3">
-                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-lg shrink-0 mt-0.5">{item.date}</span>
-                <div className="min-w-0">
-                  <p className="text-sm text-slate-700 leading-6">{item.content}</p>
-                  {item.source && <p className="text-xs text-blue-400 mt-1">{item.source}</p>}
+              <div key={i} className="flex items-start gap-3 bg-slate-50 rounded-lg px-3 py-2">
+                <span className="bg-slate-200 text-slate-600 text-[11px] font-medium px-2 py-0.5 rounded shrink-0 mt-0.5">{item.date}</span>
+                <div>
+                  <p className="text-xs text-slate-700">{item.content}</p>
+                  {item.source && <p className="text-[11px] text-slate-400 mt-0.5">{item.source}</p>}
                 </div>
               </div>
             ))}
