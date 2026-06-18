@@ -206,7 +206,11 @@ ${sections.join('\n\n')}
 - 기준 문서가 있으면 그것을 기반으로 confirmed/changed/pending을 채우세요.
 - milestones는 전체 프로젝트를 대표하는 핵심 시점만 3~6개.
 - category는 해당 항목의 성격에 맞는 한국어 카테고리명 (예: 기획, 홍보, 개발, 심사, 운영, 법무, 디자인, 예산 등 프로젝트에 맞게 자유롭게).
-- 없는 항목은 빈 배열로 반환하세요.`
+- 없는 항목은 빈 배열로 반환하세요.
+- [중복 금지] confirmed / changed / pending 세 배열은 서로 겹치지 않아야 합니다. 하나의 사안은 반드시 하나의 배열에만 넣으세요.
+  - changed: 한 번이라도 내용이 바뀐 사안 (from → to 로 변화를 표현). 현재 확정된 상태여도 변경 이력이 있으면 changed에만 넣습니다.
+  - confirmed: 처음 결정된 이후 한 번도 변경되지 않고 확정된 사안만.
+  - pending: 아직 결정되지 않은 사안. 확정이나 변경이 있었더라도 현재 미결이면 pending에만 넣습니다.`
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -263,7 +267,11 @@ ${[baseSummary, activitySummary].filter(Boolean).join('\n\n')}
 ${hasBaseDoc ? `- 기준 문서를 기반으로 confirmed/changed/pending을 채우세요.` : `- 활동 기록에서 confirmed/changed/pending을 추출하세요.`}
 - milestones는 핵심 시점만 3~6개.
 - category는 해당 항목의 성격에 맞는 한국어 카테고리명 (예: 기획, 홍보, 개발, 심사, 운영, 법무, 디자인, 예산 등 프로젝트에 맞게 자유롭게).
-- 없으면 빈 배열.`
+- 없으면 빈 배열.
+- [중복 금지] confirmed / changed / pending 세 배열은 서로 겹치지 않아야 합니다. 하나의 사안은 반드시 하나의 배열에만 넣으세요.
+  - changed: 한 번이라도 내용이 바뀐 사안 (from → to 로 변화를 표현). 현재 확정된 상태여도 변경 이력이 있으면 changed에만 넣습니다.
+  - confirmed: 처음 결정된 이후 한 번도 변경되지 않고 확정된 사안만.
+  - pending: 아직 결정되지 않은 사안. 확정이나 변경이 있었더라도 현재 미결이면 pending에만 넣습니다.`
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
