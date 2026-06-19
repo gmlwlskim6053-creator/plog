@@ -29,39 +29,29 @@ function groupByCategory<T extends { category?: string }>(items: T[]): { categor
   return Array.from(map.entries()).map(([category, items]) => ({ category, items }))
 }
 
-function CategoryCard({
+type ConfirmedItem = SubProjectAnalysis['confirmed'][number] & { from?: string; to?: string }
+type PendingItem = SubProjectAnalysis['pending'][number]
+
+function previewKeywords(items: { content: string }[]) {
+  return items.map((i) => i.content.replace(/:.+$/, '').replace(/\(.+\)/, '').trim().split(' ').slice(0, 3).join(' ')).join(' · ')
+}
+
+function StatusPanel({
   title,
   count,
-  colorClass,
-  children,
+  borderClass,
+  icon,
+  groups,
+  renderItem,
 }: {
   title: string
   count: number
-  colorClass: { bg: string; text: string; badge: string; badgeText: string }
-  children: React.ReactNode
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex-1 min-w-0">
-      <div className={`flex items-center gap-1.5 mb-3`}>
-        <p className={`text-xs font-semibold ${colorClass.text}`}>{title}</p>
-        <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${colorClass.badge} ${colorClass.badgeText}`}>{count}</span>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function CategoryGroup<T extends { category?: string; content: string; source?: string }>({
-  groups,
-  dotColor,
-  renderItem,
-}: {
-  groups: { category: string; items: T[] }[]
-  dotColor: string
-  renderItem: (item: T, i: number) => React.ReactNode
+  borderClass: string
+  icon: React.ReactNode
+  groups: { category: string; items: { content: string }[] }[]
+  renderItem: (item: any, i: number) => React.ReactNode
 }) {
   const [open, setOpen] = useState<Set<string>>(new Set())
-
   function toggle(cat: string) {
     setOpen((prev) => {
       const next = new Set(prev)
@@ -70,34 +60,48 @@ function CategoryGroup<T extends { category?: string; content: string; source?: 
     })
   }
 
-  if (groups.length === 0) return <p className="text-xs text-slate-400 py-2">없음</p>
-
   return (
-    <div>
-      {groups.map(({ category, items }) => (
-        <div key={category}>
-          <button
-            onClick={() => toggle(category)}
-            className="w-full flex items-center justify-between py-2 border-b border-slate-100 last:border-b-0 text-left"
-          >
-            <span className="text-[13px] font-medium text-slate-700">{category}</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-[11px] text-slate-400">{items.length}개</span>
-              <svg
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open.has(category) ? 'rotate-180' : ''}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+    <div className={`bg-white rounded-xl border ${borderClass} overflow-hidden flex-1 min-w-0`}>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+        {icon}
+        <span className="text-[13px] font-medium text-slate-800">{title} {count}</span>
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-xs text-slate-400 px-4 py-4">없음</p>
+      ) : (
+        groups.map(({ category, items }, idx) => {
+          const isOpen = open.has(category)
+          return (
+            <div key={category} className={idx < groups.length - 1 ? 'border-b border-slate-100' : ''}>
+              <button
+                onClick={() => toggle(category)}
+                className="w-full flex items-start justify-between px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </span>
-          </button>
-          {open.has(category) && (
-            <div className="pl-3 py-1 border-b border-slate-100 last:border-b-0">
-              {items.map((item, i) => renderItem(item, i))}
+                <div className="min-w-0 flex-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-slate-700">{category}</span>
+                    <span className="text-[11px] text-slate-400">{items.length}개</span>
+                  </div>
+                  {!isOpen && (
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">{previewKeywords(items)}</p>
+                  )}
+                </div>
+                <svg
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 mt-1 ${isOpen ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {isOpen && (
+                <div className="px-4 pb-3 flex flex-col gap-2">
+                  {items.map((item, i) => renderItem(item, i))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+          )
+        })
+      )}
     </div>
   )
 }
@@ -107,9 +111,15 @@ function AnalysisSection({
 }: {
   data: Pick<SubProjectAnalysis, 'confirmed' | 'changed' | 'pending' | 'schedules'> & { summary?: string }
 }) {
-  const confirmedGroups = groupByCategory(data.confirmed)
-  const changedGroups = groupByCategory(data.changed)
+  // confirmed + changed 합치기 (changed는 from 정보 보존)
+  const mergedConfirmed: ConfirmedItem[] = [
+    ...data.confirmed,
+    ...data.changed.map((c) => ({ ...c })),
+  ]
+  const confirmedGroups = groupByCategory(mergedConfirmed)
   const pendingGroups = groupByCategory(data.pending)
+  const totalConfirmed = mergedConfirmed.length
+  const totalPending = data.pending.length
 
   return (
     <div className="space-y-4">
@@ -119,76 +129,50 @@ function AnalysisSection({
         </div>
       )}
 
-      <div className="flex gap-3 flex-wrap">
-        {/* 확정 */}
-        <CategoryCard
+      {/* 필터 뱃지 */}
+      <div className="flex gap-2">
+        <span className="text-[12px] font-medium px-3 py-1 rounded-full bg-slate-100 text-slate-500">{totalConfirmed + totalPending}개 전체</span>
+        <span className="text-[12px] font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">확정 {totalConfirmed}</span>
+        <span className="text-[12px] font-medium px-3 py-1 rounded-full bg-amber-50 text-amber-700">미결 {totalPending}</span>
+      </div>
+
+      <div className="flex gap-3">
+        {/* 확정 패널 */}
+        <StatusPanel
           title="확정 사항"
-          count={data.confirmed.length}
-          colorClass={{ bg: '', text: 'text-emerald-700', badge: 'bg-emerald-50', badgeText: 'text-emerald-700' }}
-        >
-          <CategoryGroup
-            groups={confirmedGroups}
-            dotColor="bg-emerald-400"
-            renderItem={(item, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
-                  {item.source && <p className="text-[11px] text-emerald-600 mt-0.5">{item.source}</p>}
-                </div>
-              </div>
-            )}
-          />
-        </CategoryCard>
+          count={totalConfirmed}
+          borderClass="border-slate-200"
+          icon={<svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          groups={confirmedGroups}
+          renderItem={(item: ConfirmedItem, i) => (
+            <div key={i}>
+              <p className="text-xs text-slate-700 leading-5">{item.content}</p>
+              {(item.from || item.to) && (
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  <span className="line-through">{item.from}</span>
+                  {item.from && item.to && ' → '}
+                  <span className="text-slate-500">{item.to}</span>
+                </p>
+              )}
+              {item.source && <p className="text-[11px] text-emerald-600 mt-0.5">{item.source}</p>}
+            </div>
+          )}
+        />
 
-        {/* 미결 */}
-        <CategoryCard
+        {/* 미결 패널 */}
+        <StatusPanel
           title="미결 사항"
-          count={data.pending.length}
-          colorClass={{ bg: '', text: 'text-amber-700', badge: 'bg-amber-50', badgeText: 'text-amber-700' }}
-        >
-          <CategoryGroup
-            groups={pendingGroups}
-            dotColor="bg-amber-400"
-            renderItem={(item, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
-                  {item.source && <p className="text-[11px] text-amber-600 mt-0.5">{item.source}</p>}
-                </div>
-              </div>
-            )}
-          />
-        </CategoryCard>
-
-        {/* 변경 */}
-        <CategoryCard
-          title="변경 사항"
-          count={data.changed.length}
-          colorClass={{ bg: '', text: 'text-blue-700', badge: 'bg-blue-50', badgeText: 'text-blue-700' }}
-        >
-          <CategoryGroup
-            groups={changedGroups}
-            dotColor="bg-blue-400"
-            renderItem={(item, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-slate-700 leading-5">{item.content}</p>
-                  {(item.from || item.to) && (
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      <span className="line-through">{item.from}</span>
-                      {item.from && item.to && ' → '}
-                      <span className="text-blue-600 font-medium">{item.to}</span>
-                    </p>
-                  )}
-                  {item.source && <p className="text-[11px] text-blue-500 mt-0.5">{item.source}</p>}
-                </div>
-              </div>
-            )}
-          />
-        </CategoryCard>
+          count={totalPending}
+          borderClass="border-amber-300"
+          icon={<svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          groups={pendingGroups}
+          renderItem={(item: PendingItem, i) => (
+            <div key={i}>
+              <p className="text-xs text-slate-700 leading-5">{item.content}</p>
+              {item.source && <p className="text-[11px] text-amber-600 mt-0.5">{item.source}</p>}
+            </div>
+          )}
+        />
       </div>
 
       {data.schedules.length > 0 && (
@@ -208,7 +192,7 @@ function AnalysisSection({
         </div>
       )}
 
-      {data.confirmed.length === 0 && data.changed.length === 0 && data.pending.length === 0 && data.schedules.length === 0 && (
+      {totalConfirmed === 0 && totalPending === 0 && data.schedules.length === 0 && (
         <p className="text-slate-400 text-sm text-center py-6">분석된 내용이 없습니다.</p>
       )}
     </div>
